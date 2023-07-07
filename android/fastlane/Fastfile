@@ -1,0 +1,78 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:android)
+
+platform :android do
+  desc "Runs all the tests"
+  lane :test do
+    gradle(task: "test")
+  end
+
+  desc "Submit a new Beta Build to Crashlytics Beta"
+  lane :beta do
+    gradle(task: "clean assembleRelease")
+    crashlytics
+  
+    # sh "your_script.sh"
+    # You can also use other beta testing services here
+  end
+
+  desc "Deploy a new version to the Google Play"
+  lane :deploy do
+    gradle(task: "clean assembleRelease")
+    upload_to_play_store
+  end
+
+  desc "this lane uploads dev build to app testers"
+  lane :uploadDev do
+    gradle( task: "clean assemble", flavor: "dev", build_type: "Release")
+    release = firebase_app_distribution(
+        service_credentials_file: ENV['GOOGLE_SERVICE_ACCOUNT'],
+        app: "1:884695005003:android:6add06cd70da1e820fdace",
+        release_notes: ENV['CI_COMMIT_TAG_MESSAGE'],
+        groups: "devs",
+        testers: "gemasia99@gmail.com",
+        apk_path: "../build/app/outputs/apk/dev/release/app-dev-release.apk",
+        android_artifact_type: "APK"
+    )     
+  end
+
+  lane :uploadTst do
+    gradle( task: "clean assemble", flavor: "tst", build_type: "Release")
+    release = firebase_app_distribution(
+        service_credentials_file: ENV['GOOGLE_SERVICE_ACCOUNT'],
+        app: "1:884695005003:android:b7c54f765d4b8daa0fdace",
+        release_notes: ENV['CI_COMMIT_MESSAGE'],
+        groups: "devs",
+        testers: "gemasia99@gmail.com",
+        apk_path: "../build/app/outputs/apk/tst/release/app-tst-release.apk",
+        android_artifact_type: "APK"
+    )
+  end
+
+  lane :uploadAcc do
+    gradle( task: "clean assemble", flavor: "acc", build_type: "Release")
+    release = firebase_app_distribution(
+        service_credentials_file: ENV['GOOGLE_SERVICE_ACCOUNT'],
+        app: "1:884695005003:android:993846c00a0e873b0fdace",
+        release_notes: ENV['CI_COMMIT_MESSAGE'],
+        groups: "devs",
+        testers: "gemasia99@gmail.com",
+        apk_path: "../build/app/outputs/apk/acc/release/app-acc-release.apk",
+        android_artifact_type: "APK"
+    )
+  end
+end

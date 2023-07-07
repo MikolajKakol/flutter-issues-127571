@@ -1,0 +1,11 @@
+{
+  "@@locale": "en",
+  "start_help": "Help",
+  "@start_help": {},
+  "start_log_in": "Log in",
+  "@start_log_in": {},
+  "start_register": "Register",
+  "@start_register": {},
+  "start_welcome": "Welcome in vent!",
+  "@start_welcome": {}
+}

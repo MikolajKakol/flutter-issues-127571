@@ -1,0 +1,81 @@
+image: registry.speednet.dev/public/flutter-fastlane-sdk-image:latest
+
+# variables:
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG =~ /^dev_[0-9]+\.[0-9]+\.[0-9]+$/
+      variables:
+        ANDROID_FASTLANE_FLAVOUR: "uploadDev"
+    - if: $CI_COMMIT_TAG =~ /^tst_[0-9]+\.[0-9]+\.[0-9]+$/
+      variables:
+        ANDROID_FASTLANE_FLAVOUR: "uploadTst"
+    - if: $CI_COMMIT_TAG =~ /^acc_[0-9]+\.[0-9]+\.[0-9]+$/
+      variables:
+        ANDROID_FASTLANE_FLAVOUR: "uploadAcc"
+cache:
+  paths:
+    - .pub-cache/global_packages
+
+stages:
+  - analyze_and_test
+  - build
+
+run_tests:
+  stage: analyze_and_test
+  before_script:
+    - export PATH="$PATH":"$HOME/.pub-cache/bin/"
+    - flutter clean
+    - flutter packages get
+    - flutter pub get --directory ./
+    - flutter pub run localizely_sdk:generate
+    - flutter pub get junitreport --directory ./
+    - flutter pub global activate junitreport
+    - flutter pub run build_runner build --delete-conflicting-outputs
+  script:
+    - flutter test --machine | tojunit -o report.xml
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - report.xml
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+fastlane_build_android:
+  stage: build
+  variables:
+    SECURE_FILES_DOWNLOAD_PATH: 'android/app/.secure_files'
+  before_script:
+    - sed -i '/static int minSdkVersion/ s/16/26/' /sdks/flutter/packages/flutter_tools/gradle/flutter.gradle
+    - flutter clean
+    - flutter packages get
+    - cp lib/app.dart lib/main.dart
+    - curl --silent "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer" | bash
+  script:
+    - flutter pub run localizely_sdk:generate
+    - flutter pub run build_runner build --delete-conflicting-outputs
+    - cd android/fastlane; 
+    - fastlane $ANDROID_FASTLANE_FLAVOUR
+  rules:
+    - if: $CI_COMMIT_TAG
+
+# flutter_build_ios:
+#   stage: build
+#   before_script:
+#     - cp lib/app.dart lib/main.dart
+#     - flutter packages get
+#     - flutter clean
+#   script:
+#     - flutter build ios
+#     - cd ios
+#     - xcodebuild clean archive -workspace Runner.xcworkspace -scheme Runner -archivePath RunnerArchive
+#     - xcodebuild -exportArchive -archivePath RunnerArchive.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath ./build
+#   artifacts:
+#     when: on_success
+#     expire_in: "30 days"
+#     paths:
+#       - "ios/build/Runner.ipa"
+#   tags:
+#     - ios
